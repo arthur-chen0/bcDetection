@@ -83,15 +83,18 @@ def comparison(file):
 
     base_black = cv.compareHist(hist_black, hist, 0)
     base_black_logo = cv.compareHist(hist_black_logo, hist, 0)
+
     # print(file + " is " + str(base_black_logo))
 
     comparisonResult = None
 
-    if(base_black > 0.6):
+    if(base_black > 0.55):
         comparisonResult = "black"
     else:
         comparisonResult = "white"
         if(base_black_logo > 0.5):
+            comparisonResult = "black"
+        elif(base_black < 0):
             comparisonResult = "black"
     # print(file + " is " + comparisonResult + "  " + str(base_black) + " / " + str(base_black_logo))
 
