@@ -63,6 +63,14 @@ def mail(msg):
         print("mail fail!")
     smtp.quit()
 # ============================================================================================
+mailTitle = ["To: arthurchen@johnsonfitness.com, jerrylin@johnsonfitness.com\n", "From:jhtrd01@gmail.com\n", "Subject: Black Screen Test Result\n\n", "Hi All, \n\n"]
+def createMailText(msg):
+    outF = open("/home/jhtrd/auto_test/blackScreen/chimera/blackScreenResult.txt", "w")
+    outF.writelines(mailTitle)
+    outF.writelines(msg)
+    outF.close()
+    # os.system("sudo ssmtp arthurchen@johnsonfitness.com jerrylin@johnsonfitness.com < blackScreenResult.txt")
+# ============================================================================================
 imagePath = os.path.abspath(args.path)
 
 fileList = os.listdir(imagePath)
@@ -70,10 +78,10 @@ fileList.sort()
 
 def comparison(file):
     
-    src_black = cv.imread('/home/jhtrd/auto_test/blackScreen/black.jpg')
-    src_black2 = cv.imread('/home/jhtrd/auto_test/blackScreen/black2.jpg')
-    src_black3 = cv.imread('/home/jhtrd/auto_test/blackScreen/black3.jpg')
-    src_black_logo = cv.imread('/home/jhtrd/auto_test/blackScreen/black_logo.jpg')
+    src_black = cv.imread('/home/jhtrd/auto_test/blackScreen/chimera/black.jpg')
+    src_black2 = cv.imread('/home/jhtrd/auto_test/blackScreen/chimera/black2.jpg')
+    src_black3 = cv.imread('/home/jhtrd/auto_test/blackScreen/chimera/black3.jpg')
+    src_black_logo = cv.imread('/home/jhtrd/auto_test/blackScreen/chimera/black_logo.jpg')
 
     src = cv.imread(imagePath + "/" + file)
 
@@ -134,8 +142,7 @@ timeStamp1 = None
 timeStamp2 = None
 rebootCount = 0
 errorCount = 0
-isError = False
-mailMsg = "Hi All,\n\nBlack Screen Detection Error List:\n"
+mailMsg = ["Black Screen Detection Error List:\n"]
 startTime = datetime.datetime.now()
 for file in fileList:
 
@@ -158,10 +165,9 @@ for file in fileList:
                 count = (timeStamp2 - timeStamp1).seconds
                 
                 if(count > 165 or count < 150):
-                    isError = True
                     errorCount += 1
                     print(colors.fg.lightgrey, str(timeStamp1) + " --- " + str(timeStamp2), colors.fg.orange, " Accumulated time: " + str(count), colors.fg.lightred, "-----Something worng")
-                    mailMsg += str(timeStamp1) + " --- " + str(timeStamp2) + " Accumulated time: " + str(count) + "\n"
+                    mailMsg.append(str(timeStamp1) + " --- " + str(timeStamp2) + " Accumulated time: " + str(count) + "\n")
                 else:
                     if(args.debug):
                         print(colors.fg.lightgrey, str(timeStamp1) + " --- " + str(timeStamp2), colors.fg.orange, " Accumulated time: " + str(count) )
@@ -176,8 +182,9 @@ print(colors.fg.lightblue, "Service Time: " + str(serviceTime) + " Sec")
 print(colors.fg.lightred, "Error happened " + str(errorCount) + " times")
 print(colors.fg.lightred, "Reboot " + str(rebootCount) + " times.")
 print(colors.reset)
-# if isError:
-#     mail(mailMsg + "\nTotal reboot " + str(rebootCount) + " times.")
+mailMsg.extend(["\nError happened " + str(errorCount) + " times\n", "Total reboot " + str(rebootCount) + " times.\n\n"])
+mailMsg.extend(["This is daily mail for black screen test.\n", str(endTime), "\n"])
+createMailText(mailMsg)
 
                 
 
