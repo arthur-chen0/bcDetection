@@ -7,13 +7,13 @@ import datetime
 import sys
 import smtplib
 import argparse
-# ============================================================================================
+# ==============================================================================================
 parser = argparse.ArgumentParser(description='Code for black screen detection.')
 parser.add_argument('-d','--debug', help='Debug message',action='store_true')
 parser.add_argument('-dl','--debugLevel', help='Debug message level',type=int, default='1')
 parser.add_argument('-p','--path', help='Image path' )
 args = parser.parse_args()
-# ============================================================================================
+# ==============================================================================================
 class colors: 
     reset='\033[0m'
     bold='\033[01m'
@@ -47,30 +47,15 @@ class colors:
         purple='\033[45m'
         cyan='\033[46m'
         lightgrey='\033[47m'
-# ============================================================================================
-def mail(msg):
-    smtp=smtplib.SMTP('smtp.gmail.com', 587)
-    smtp.ehlo()
-    smtp.starttls()
-    smtp.login('jhtrd01@gmail.com','jhtrd1234')
-    from_addr='jhtrd01@gmail.com'
-    to_addr="arthurchen@johnsonfitness.com, jerrylin@johnsonfitness.com"
-    msg="Subject:Black Screen Test Result\nFrom:jhtrd01@gmail.com\nTo:arthurchen@johnsonfitness.com, jerrylin@johnsonfitness.com\n" + msg + "\n\nThis mail is from server."
-    status=smtp.sendmail(from_addr, to_addr, msg)
-    if status=={}:
-        print("mail success!")
-    else:
-        print("mail fail!")
-    smtp.quit()
-# ============================================================================================
+# ==============================================================================================
 mailTitle = ["To: arthurchen@johnsonfitness.com, jerrylin@johnsonfitness.com\n", "From:jhtrd01@gmail.com\n", "Subject: Black Screen Test Result\n\n", "Hi All, \n\n"]
 def createMailText(msg):
     outF = open("/home/jhtrd/auto_test/blackScreen/chimera/blackScreenResult.txt", "w")
     outF.writelines(mailTitle)
     outF.writelines(msg)
     outF.close()
-    os.system("sudo ssmtp arthurchen@johnsonfitness.com jerrylin@johnsonfitness.com < blackScreenResult.txt")
-# ============================================================================================
+    # os.system("sudo ssmtp arthurchen@johnsonfitness.com jerrylin@johnsonfitness.com < blackScreenResult.txt")
+# ==============================================================================================
 imagePath = os.path.abspath(args.path)
 
 fileList = os.listdir(imagePath)
@@ -112,7 +97,7 @@ def comparison(file):
         print(file + " is " + comparisonResult + "  " + str(base_black) + " / " + str(base_black_logo))
 
     return comparisonResult
-# ============================================================================================
+# ==============================================================================================
 def histogram_Comparison(p1,p2,method):
     hsv_p1 = cv.cvtColor(p1, cv.COLOR_BGR2HSV)
     hsv_p2 = cv.cvtColor(p2, cv.COLOR_BGR2HSV)
@@ -135,13 +120,20 @@ def histogram_Comparison(p1,p2,method):
 
     result = cv.compareHist(hist_p1, hist_p2, method)
     return result
-# =======================================Main=================================================        
+# ==============================================================================================
+def fileNameParse(file):
+    timeStamp = str(file)[:14]
+    timeStamp = timeStamp.split('_')
+    timeStamp = datetime.datetime(datetime.datetime.today().year, int(timeStamp[0]), int(timeStamp[1]), int(timeStamp[2]), int(timeStamp[3]), int(timeStamp[4]))
+    return timeStamp
+# ======================================= Main =================================================        
 preImage = 'a'
 currentImage = 'b'
 timeStamp1 = None
 timeStamp2 = None
 rebootCount = 0
 errorCount = 0
+errorfileList = []
 mailMsg = ["Black Screen Detection Error List:\n"]
 startTime = datetime.datetime.now()
 for file in fileList:
@@ -153,13 +145,9 @@ for file in fileList:
         if(preImage == "white" and currentImage == 'black'):
             rebootCount += 1
             if(timeStamp1 == None):
-                timeStamp1 = str(file)[:14]
-                timeStamp1 = timeStamp1.split('_')
-                timeStamp1 = datetime.datetime(2020, int(timeStamp1[0]), int(timeStamp1[1]), int(timeStamp1[2]), int(timeStamp1[3]), int(timeStamp1[4]))
+                timeStamp1 = fileNameParse(file)
             else:
-                timeStamp2 = str(file)[:14]
-                timeStamp2 = timeStamp2.split('_')
-                timeStamp2 = datetime.datetime(2020, int(timeStamp2[0]), int(timeStamp2[1]), int(timeStamp2[2]), int(timeStamp2[3]), int(timeStamp2[4]))
+                timeStamp2 = fileNameParse(file)
 
             if(timeStamp1 != None and timeStamp2 != None):
                 count = (timeStamp2 - timeStamp1).seconds
@@ -171,7 +159,7 @@ for file in fileList:
                 else:
                     if(args.debug):
                         print(colors.fg.lightgrey, str(timeStamp1) + " --- " + str(timeStamp2), colors.fg.orange, " Accumulated time: " + str(count) )
-
+                
                 timeStamp1 = timeStamp2
                 timeStamp2 = None
                 
