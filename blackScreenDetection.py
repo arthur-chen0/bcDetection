@@ -54,7 +54,7 @@ def createMailText(msg):
     outF.writelines(mailTitle)
     outF.writelines(msg)
     outF.close()
-    # os.system("sudo ssmtp arthurchen@johnsonfitness.com jerrylin@johnsonfitness.com < blackScreenResult.txt")
+    os.system("sudo ssmtp arthurchen@johnsonfitness.com jerrylin@johnsonfitness.com < blackScreenResult.txt")
 # ==============================================================================================
 imagePath = os.path.abspath(args.path)
 
