@@ -57,27 +57,27 @@ def createMailText(msg):
     # os.system("sudo ssmtp arthurchen@johnsonfitness.com jerrylin@johnsonfitness.com < blackScreenResult.txt")
 # ==============================================================================================
 imagePath = os.path.abspath(args.path)
-
+imageBasePath = os.path.abspath('/home/jhtrd/auto_test/blackScreen/chimera/')
+imageBase = ['black.jpg', 'black2.jpg', 'black3.jpg', 'black_logo.jpg']
+blackSrc = []
 fileList = os.listdir(imagePath)
 fileList.sort()
 
+for image in imageBase:
+        blacksrc = cv.imread(imageBasePath + '/' + image)
+        blackSrc.append(blacksrc) 
+        if blacksrc is None:
+            print(imageBasePath + '/' +image + " could not open or find the images!")
+            exit(0)
+
 def comparison(file):
-    
-    src_black = cv.imread('/home/jhtrd/auto_test/blackScreen/chimera/black.jpg')
-    src_black2 = cv.imread('/home/jhtrd/auto_test/blackScreen/chimera/black2.jpg')
-    src_black3 = cv.imread('/home/jhtrd/auto_test/blackScreen/chimera/black3.jpg')
-    src_black_logo = cv.imread('/home/jhtrd/auto_test/blackScreen/chimera/black_logo.jpg')
 
     src = cv.imread(imagePath + "/" + file)
 
-    if src_black is None or src is None or src_black2 is None or src_black3 is None:
-        print('Could not open or find the images!')
-        exit(0)
-
-    base_black = histogram_Comparison(src_black, src, 0)
-    base_black2 = histogram_Comparison(src_black2, src, 0)
-    base_black3 = histogram_Comparison(src_black3, src, 0)
-    base_black_logo = histogram_Comparison(src_black_logo, src, 0)
+    base_black = histogram_Comparison(blackSrc[0], src, 0)
+    base_black2 = histogram_Comparison(blackSrc[1], src, 0)
+    base_black3 = histogram_Comparison(blackSrc[2], src, 0)
+    base_black_logo = histogram_Comparison(blackSrc[3], src, 0)
 
     # print(file + " is " + str(base_black4))
 
@@ -141,6 +141,7 @@ for file in fileList:
     if(file.endswith('jpg')):
         preImage = currentImage
         currentImage = comparison(file)
+        errorfileList.append(file)
 
         if(preImage == "white" and currentImage == 'black'):
             rebootCount += 1
