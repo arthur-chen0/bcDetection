@@ -48,24 +48,9 @@ class colors:
         cyan='\033[46m'
         lightgrey='\033[47m'
 # ============================================================================================
-def mail(msg):
-    smtp=smtplib.SMTP('smtp.gmail.com', 587)
-    smtp.ehlo()
-    smtp.starttls()
-    smtp.login('jhtrd01@gmail.com','jhtrd1234')
-    from_addr='jhtrd01@gmail.com'
-    to_addr="arthurchen@johnsonfitness.com, jerrylin@johnsonfitness.com"
-    msg="Subject:Black Screen Test Result\nFrom:jhtrd01@gmail.com\nTo:arthurchen@johnsonfitness.com, jerrylin@johnsonfitness.com\n" + msg + "\n\nThis mail is from server."
-    status=smtp.sendmail(from_addr, to_addr, msg)
-    if status=={}:
-        print("mail success!")
-    else:
-        print("mail fail!")
-    smtp.quit()
-# ============================================================================================
 mailTitle = ["To: arthurchen@johnsonfitness.com, jerrylin@johnsonfitness.com\n", "From:jhtrd01@gmail.com\n", "Subject: Black Screen Test Result\n\n", "Hi All, \n\n"]
 def createMailText(msg):
-    outF = open("/home/jhtrd/auto_test/blackScreen/chimera/blackScreenResult.txt", "w")
+    outF = open("/home/jhtrd/auto_test/blackScreen/blackScreenResult.txt", "w")
     outF.writelines(mailTitle)
     outF.writelines(msg)
     outF.close()
@@ -78,10 +63,10 @@ fileList.sort()
 
 def comparison(file):
     
-    src_black = cv.imread('/home/jhtrd/auto_test/blackScreen/chimera/black.jpg')
-    src_black2 = cv.imread('/home/jhtrd/auto_test/blackScreen/chimera/black2.jpg')
-    src_black3 = cv.imread('/home/jhtrd/auto_test/blackScreen/chimera/black3.jpg')
-    src_black_logo = cv.imread('/home/jhtrd/auto_test/blackScreen/chimera/black_logo.jpg')
+    src_black = cv.imread('/home/jhtrd/auto_test/blackScreen/black.jpg')
+    src_black2 = cv.imread('/home/jhtrd/auto_test/blackScreen/black2.jpg')
+    src_black3 = cv.imread('/home/jhtrd/auto_test/blackScreen/black3.jpg')
+    src_black_logo = cv.imread('/home/jhtrd/auto_test/blackScreen/black_logo.jpg')
 
     src = cv.imread(imagePath + "/" + file)
 
@@ -142,6 +127,8 @@ timeStamp1 = None
 timeStamp2 = None
 rebootCount = 0
 errorCount = 0
+isError = False
+# mailMsg = "Hi All,\n\nBlack Screen Detection Error List:\n"
 mailMsg = ["Black Screen Detection Error List:\n"]
 startTime = datetime.datetime.now()
 for file in fileList:
@@ -165,9 +152,11 @@ for file in fileList:
                 count = (timeStamp2 - timeStamp1).seconds
                 
                 if(count > 165 or count < 150):
+                    isError = True
                     errorCount += 1
                     print(colors.fg.lightgrey, str(timeStamp1) + " --- " + str(timeStamp2), colors.fg.orange, " Accumulated time: " + str(count), colors.fg.lightred, "-----Something worng")
                     mailMsg.append(str(timeStamp1) + " --- " + str(timeStamp2) + " Accumulated time: " + str(count) + "\n")
+                    # mailMsg += str(timeStamp1) + " --- " + str(timeStamp2) + " Accumulated time: " + str(count) + "\n"
                 else:
                     if(args.debug):
                         print(colors.fg.lightgrey, str(timeStamp1) + " --- " + str(timeStamp2), colors.fg.orange, " Accumulated time: " + str(count) )
@@ -185,6 +174,7 @@ print(colors.reset)
 mailMsg.extend(["\nError happened " + str(errorCount) + " times\n", "Total reboot " + str(rebootCount) + " times.\n\n"])
 mailMsg.extend(["This is daily mail for black screen test.\n", str(endTime), "\n"])
 createMailText(mailMsg)
+    # mail(mailMsg + "\nTotal reboot " + str(rebootCount) + " times.")
 
                 
 
