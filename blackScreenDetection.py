@@ -22,9 +22,9 @@ args = parser.parse_args()
 filePath = os.path.abspath('/home/jhtrd/auto_test/blackScreen/chimera/')
 if not os.path.exists(filePath + "/log/"):
     os.makedirs(filePath + "/log/")
-
-LOGGING['handlers']['debug']['filename'] = datetime.datetime.now().strftime(filePath + '/log/%m_%d_%H_%M_%S.log')
-LOGGING['handlers']['error']['filename'] = datetime.datetime.now().strftime(filePath + '/log/error_%m_%d_%H_%M_%S.log')
+logFileDate = datetime.datetime.now()
+LOGGING['handlers']['debug']['filename'] = logFileDate.strftime(filePath + '/log/%m_%d_%H_%M_%S.log')
+LOGGING['handlers']['error']['filename'] = logFileDate.strftime(filePath + '/log/error_%m_%d_%H_%M_%S.log')
 
 logging.config.dictConfig(config=LOGGING)
 log_c = logging.getLogger('console')
@@ -84,43 +84,57 @@ def loge(message):
     log_d.error(logMsg)
     log_e.error(logMsg)
 # ==============================================================================================
-mailListFile = open("/home/jhtrd/auto_test/blackScreen/mailList")
-mailList = mailListFile.readlines()
-receiver = ""
-for user in mailList:
-    if "#" not in user:
-        receiver += user.replace("\n"," ")
 
-# filePath = os.path.abspath('/home/jhtrd/auto_test/blackScreen/chimera/')
-mailTitle = ["To: " + receiver + "\n", "From: jhtrd01@gmail.com\n", "Subject: Black Screen Test Result\n\n", "Hi All, \n\n"]
-def createMailText(msg):
+def getMailreceiver():
+    mailListFile = open("/home/jhtrd/auto_test/blackScreen/mailList")
+    mailList = mailListFile.readlines()
+    receiver = ""
+    for user in mailList:
+        if "#" not in user:
+            receiver += user.replace("\n"," ")
+    return receiver
+# ==============================================================================================
+def createMailText(errorList, totalTimes, endTime):
+    mailMsg = []
+    mailTitle = ["To: " + getMailreceiver() + "\n", "From: jhtrd01@gmail.com\n", "Subject: Black Screen Test Result\n\n", "Hi All, \n\n"]
+    if len(errorList) is not 0:
+        mailMsg.append("Chimera Black Screen Detection Error List:\n")
+        for error in errorList:
+            mailMsg.append(error)
+    else:
+        mailMsg.append("No error happened.")
+
+    mailMsg.extend(["\n\nError happened " + str(len(errorList)) + " times.\n", "Total reboot " + totalTimes + " times.\n\n"])
+    mailMsg.extend(["This is daily mail for chimera black screen test.\n", str(endTime.strftime("%Y-%m-%d %H:%M:%S")), "\n"])
+
     if not os.path.exists(filePath + "/result"):
         os.makedirs(filePath + "/result")
     date = datetime.datetime.today().strftime("%Y-%m-%d_%H%M%S")
     fileName = filePath + "/result/chimera_blackScreenResult_" + date + ".txt"
     result = open(fileName, "w")
     result.writelines(mailTitle)
-    result.writelines(msg)
+    result.writelines(mailMsg)
     result.close()
-    # os.system("sudo ssmtp arthurchen@johnsonfitness.com < " + fileName)
-    os.system("sudo ssmtp " + receiver + " < blackScreenResult.txt")
+    os.system("sudo ssmtp " + getMailreceiver() + " < " + fileName)
 # ==============================================================================================
 imagePath = os.path.abspath("/home/jhtrd/auto_test/photo_web/" + args.path)
 imageBase = ['black.jpg', 'black2.jpg', 'black3.jpg', 'black_logo.jpg']
-blackSrc = []
 fileList = os.listdir(imagePath)
 fileList.sort()
 
-for image in imageBase:
-        blacksrc = cv.imread(filePath + '/' + image)
-        blackSrc.append(blacksrc) 
-        if blacksrc is None:
-            # print(filePath + '/' +image + " could not open or find the images!")
-            loge(filePath + '/' +image + " could not open or find the images!")
-            exit(0)
-
+def imageRead():
+    blackSrc = []
+    for image in imageBase:
+            blacksrc = cv.imread(filePath + '/' + image)
+            blackSrc.append(blacksrc) 
+            if blacksrc is None:
+                loge(filePath + '/' +image + " could not open or find the images!")
+                exit(0)
+    return blackSrc
+# ==============================================================================================
 def comparison(file):
 
+    blackSrc = imageRead()
     src = cv.imread(imagePath + "/" + file)
 
     base_black = histogram_Comparison(blackSrc[0], src, 0)
@@ -143,7 +157,6 @@ def comparison(file):
         #     comparisonResult = "black"
 
     if(args.debug and args.debugLevel >= 2):
-        # print(colors.fg.lightgrey,file + " is " + comparisonResult + "  " + str(base_black) + " / " + str(base_black_logo))
         logd(file + " is " + comparisonResult + "  " + str(base_black) + " / " + str(base_black2) + " / " + str(base_black3) + " / " + str(base_black_logo))
 
     return comparisonResult
@@ -187,10 +200,9 @@ def fileNameParse(file):
 #         os.remove(list[i])
 
 # ==============================================================================================
-photoList = []
-tempList = []
 def fileSort():
-    global photoList, tempList
+    photoList = []
+    tempList = []
     for file in fileList:
         if(file.endswith('jpg')):
             if fnmatch.fnmatch(file, '*_on.jpg'):
@@ -203,25 +215,22 @@ def fileSort():
     if tempList is not 0:
         photoList.append(tempList)
         tempList = []
+    return photoList
 # ======================================= Main =================================================       
 preImage = 'a'
 currentImage = 'b'
 firstTime = None
 timeStamp = None
 finalTime = None
-rebootCount = 0
-errorCount = 0
-# errorfileList = []
-mailMsg = ["Chimera Black Screen Detection Error List:\n"]
-startTime = datetime.datetime.now()
+errorList = []
 
 if __name__ == '__main__':
 
-    fileSort()
-
+    photoList = fileSort()
+    startTime = datetime.datetime.now()
     for comparisonList in photoList:
         firstTime = fileNameParse(comparisonList[0])
-        endTime = fileNameParse(comparisonList[len(comparisonList)-1])
+        finalTime = fileNameParse(comparisonList[len(comparisonList)-1])
         for photo in comparisonList:
 
             preImage = currentImage
@@ -234,9 +243,10 @@ if __name__ == '__main__':
                 count = (timeStamp - firstTime).seconds
 
                 if(count > 60):
-                    errorCount += 1
+                    # errorCount += 1
                     print(colors.fg.lightgrey, str(firstTime) + " - " + str(finalTime), colors.fg.orange, " Accumulated time: " + str(count), colors.fg.lightred, "-----> Error happened")
                     loge(str(firstTime) + " - " + str(finalTime) + " Accumulated time: " + str(count) + " Error happened")
+                    errorList.append(str(firstTime) + " - " + str(finalTime) + " Accumulated time: " + str(count))
                 else:
                     if(args.debug):
                         print(colors.fg.lightgrey, str(firstTime) + " - " + str(finalTime), colors.fg.orange, " Accumulated time: " + str(count) )
@@ -244,19 +254,15 @@ if __name__ == '__main__':
                 
                 timeStamp = None
                 break;
-        preImage = 'a'
-        currentImage = 'b'
 
     endTime = datetime.datetime.now()
     serviceTime = ((endTime - startTime).seconds)
     print(colors.fg.lightblue, "Total File: " + str(len(fileList)))
     print(colors.fg.lightblue, "Service Time: " + str(serviceTime) + " Sec")
-    print(colors.fg.lightred, "Error happened " + str(errorCount) + " times")
+    print(colors.fg.lightred, "Error happened " + str(len(errorList)) + " times")
     print(colors.fg.lightred, "Reboot " + str(len(photoList)) + " times.")
     print(colors.reset)
-    mailMsg.extend(["\nError happened " + str(errorCount) + " times\n", "Total reboot " + str(rebootCount) + " times.\n\n"])
-    mailMsg.extend(["This is daily mail for chimera black screen test.\n", str(endTime.strftime("%Y-%m-%d %H:%M:%S")), "\n"])
-    # createMailText(mailMsg)
+    # createMailText(errorList, str(len(photoList)), endTime)
 
                 
 
