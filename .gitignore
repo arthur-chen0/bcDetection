@@ -27,3 +27,6 @@ tmp/
 /target
 out/
 *.txt
+result/
+log/
+__pycache__/
