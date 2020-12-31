@@ -29,5 +29,6 @@ out/
 *.txt
 result/
 log/
+error/
 __pycache__/
 test*

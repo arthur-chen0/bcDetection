@@ -13,6 +13,8 @@ import argparse
 import fnmatch
 import logging
 import inspect
+import math
+import matplotlib.pyplot as plt 
 # ==============================================================================================
 parser = argparse.ArgumentParser(description='Code for black screen detection.')
 parser.add_argument('-d','--debug', help='Debug message',action='store_true')
@@ -25,8 +27,6 @@ imagePath = os.path.abspath("/home/jhtrd/auto_test/photo_web/" + args.path)
 
 # currentFile = inspect.getfile(inspect.currentframe()).split(".")[0]
 currentFile =  __file__.split('/')[-1].split('.')[0]
-print(currentFile)
-
 
 if not os.path.exists(filePath + "/log/"):
     os.makedirs(filePath + "/log/")
@@ -74,15 +74,16 @@ def getMailreceiver():
 # ==============================================================================================
 def createMailText(errorList, totalTimes, endTime):
     mailMsg = []
-    mailTitle = ["To: " + getMailreceiver() + "\n", "From: jhtrd01@gmail.com\n", "Subject: Black Screen Test Result\n\n", "Hi All, \n\n"]
+    mailTitle = ["To: " + getMailreceiver() + "\n", "From: jhtrd01@gmail.com\n", "Subject: Chimera Black Screen Test Result\n\n", "Hi All, \n\n"]
     if len(errorList) is not 0:
-        mailMsg.append("Chimera Black Screen Detection Error List:\n")
+        mailMsg.append("Error List:\n")
         for error in errorList:
             mailMsg.append(error)
     else:
         mailMsg.append("No error happened.")
 
-    mailMsg.extend(["\n\nError happened " + str(len(errorList)) + " times.\n", "Total reboot " + totalTimes + " times.\n\n"])
+    mailMsg.append("\n\n" + str(fileNameParse(fileList[0])) + " ~ " + str(fileNameParse(fileList[-1])) + "   " + str(fileNameParse(fileList[-1]) - fileNameParse(fileList[0])) + "\n")
+    mailMsg.extend(["Error happened " + str(len(errorList)) + " times.\n", "Total reboot " + totalTimes + " times.\n\n"])
     mailMsg.extend(["This is daily mail for chimera black screen test.\n", str(endTime.strftime("%Y-%m-%d %H:%M:%S")), "\n"])
 
     if not os.path.exists(filePath + "/result"):
@@ -119,12 +120,13 @@ def comparison(file):
 
     (score, diff) = structural_similarity(black, photoSrc, full=True)
     (score2, diff) = structural_similarity(black2, photoSrc, full=True)
-    logd(str(file) + " SSIM: " + format(score) + " / " + format(score2))
 
     if score > 0.7 or score2 > 0.7:
         comparisonResult = "black"
     else:
         comparisonResult = "white"
+
+    logd(str(file).split('.')[0] + " " + comparisonResult + " SSIM: " + format(score) + " / " + format(score2))
 
     return comparisonResult
 # ==============================================================================================
@@ -134,14 +136,38 @@ def fileNameParse(file):
     timeStamp = datetime.datetime(datetime.datetime.today().year, int(timeStamp[0]), int(timeStamp[1]), int(timeStamp[2]), int(timeStamp[3]), int(timeStamp[4]))
     return timeStamp
 # ==============================================================================================
-# def copyErrorToFile(list, count):
-#     path = filePath + "/black_" + str(count)
-#     if not os.path.exists(path):
-#         os.makedirs(path)
-#     for i in range(len(list) - 1):
-#         copyfile(imagePath + "/" + list[i], path + "/" + list[i])
-#         # print(list[i])
-#         os.remove(list[i])
+def copyErrorToPhoto(errorPhotoList):
+    errorFilePath = filePath + "/error/" + logFileDate.strftime('_%Y_%m_%d_%H_%M_%S')
+    col = 10
+    row = math.ceil(len(errorPhotoList)/col)
+    imageWidth = 0
+    imageHeight = 0
+    i = 1
+
+    fig = plt.figure()
+
+    for photo in errorPhotoList:
+
+        img = cv.imread(imagePath + "/" + photo)
+        img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+
+        imageWidth = img.shape[1]
+        imageHeight = img.shape[0]
+
+        plt.subplot(row,col,i)
+        plt.title(str(photo), y=-0.3)
+        plt.imshow(img)
+        plt.xticks([])
+        plt.yticks([])
+        i +=1
+
+    fig.tight_layout()
+    fig.set_size_inches(imageWidth*col/200 + 5.5, imageHeight*row/200 + row * 0.5)
+
+    if not os.path.exists(errorFilePath):
+        os.makedirs(errorFilePath)
+
+    plt.savefig(errorFilePath + "/" + str(errorPhotoList[0]), bbox_inches='tight',dpi=80)
 
 # ==============================================================================================
 def fileSort():
@@ -173,11 +199,11 @@ if __name__ == '__main__':
 
     photoList = fileSort()
     startTime = datetime.datetime.now()
-
+    
     for comparisonList in tqdm(photoList):
 
         firstTime = fileNameParse(comparisonList[0])
-        finalTime = fileNameParse(comparisonList[len(comparisonList)-1])
+        finalTime = fileNameParse(comparisonList[-1])
         for photo in comparisonList:
             count = 0
             preImage = currentImage
@@ -190,16 +216,17 @@ if __name__ == '__main__':
                 count = (timeStamp - firstTime).seconds
 
                 if(count > 60 or count < 40):
-                    loge(str(firstTime) + " - " + str(finalTime) + " Accumulated time: " + str(count) + " Error happened")
-                    errorList.append(str(firstTime) + " - " + str(finalTime) + " Accumulated time: " + str(count) + "\n")
+                    loge(str(firstTime) + " - " + str(finalTime) + " Black screen accumulated time: " + str(count) + " Error happened")
+                    errorList.append(str(firstTime) + " - " + str(finalTime) + " Black screen accumulated time: " + str(count) + "\n")
+                    copyErrorToPhoto(comparisonList)
                 else:
-                    logd(str(firstTime) + " - " + str(finalTime) + " Accumulated time: " + str(count))
+                    logd(str(firstTime) + " - " + str(finalTime) + " Black screen accumulated time: " + str(count))
                 
                 timeStamp = None
                 break;
         if count is 0:
-            loge(str(firstTime) + " - " + str(finalTime) + " Accumulated time: " + str(count) + " Error happened")
-            errorList.append(str(firstTime) + " - " + str(finalTime) + " Accumulated time: " + str(count) + "\n")
+            loge(str(firstTime) + " - " + str(finalTime) + " Black screen accumulated time: " + str(count) + " Error happened")
+            errorList.append(str(firstTime) + " - " + str(finalTime) + " Black screen accumulated time: " + str(count) + "\n")
 
     for error in errorList:
         print(error) 
@@ -212,7 +239,7 @@ if __name__ == '__main__':
     print(colors.fg.lightred, "Reboot " + str(len(photoList)) + " times.")
     print(colors.reset)
     logd("Error happened " + str(len(errorList)) + " times.  " + "Total reboot " + str(len(photoList)) + " times.")
-    # createMailText(errorList, str(len(photoList)), endTime)
+    createMailText(errorList, str(len(photoList)), endTime)
 
                 
 
