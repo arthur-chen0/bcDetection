@@ -1,7 +1,9 @@
 from __future__ import print_function
 from __future__ import division
 from shutil import copyfile
+from tqdm import tqdm
 from loggingConfig import LOGGING
+from colors import colors
 import os
 import cv2 as cv
 import numpy as np
@@ -32,40 +34,7 @@ log_d = logging.getLogger('DebugLogger')
 log_e = logging.getLogger('ErrorLogger')
 
 # ==============================================================================================
-class colors: 
-    reset='\033[0m'
-    bold='\033[01m'
-    disable='\033[02m'
-    underline='\033[04m'
-    reverse='\033[07m'
-    strikethrough='\033[09m'
-    invisible='\033[08m'
-    class fg: 
-        black='\033[30m'
-        red='\033[31m'
-        green='\033[32m'
-        orange='\033[33m'
-        blue='\033[34m'
-        purple='\033[35m'
-        cyan='\033[36m'
-        lightgrey='\033[37m'
-        darkgrey='\033[90m'
-        lightred='\033[91m'
-        lightgreen='\033[92m'
-        yellow='\033[93m'
-        lightblue='\033[94m'
-        pink='\033[95m'
-        lightcyan='\033[96m'
-    class bg: 
-        black='\033[40m'
-        red='\033[41m'
-        green='\033[42m'
-        orange='\033[43m'
-        blue='\033[44m'
-        purple='\033[45m'
-        cyan='\033[46m'
-        lightgrey='\033[47m'
-# ==============================================================================================
+
 def logi(message):
     log_c.info(str(message))
     log_d.info(str(message))
@@ -126,6 +95,7 @@ def imageRead():
     blackSrc = []
     for image in imageBase:
             blacksrc = cv.imread(filePath + '/' + image)
+            blacksrc = cv.cvtColor(blacksrc, cv.COLOR_BGR2GRAY)
             blackSrc.append(blacksrc) 
             if blacksrc is None:
                 loge(filePath + '/' +image + " could not open or find the images!")
@@ -136,17 +106,16 @@ def comparison(file):
 
     blackSrc = imageRead()
     src = cv.imread(imagePath + "/" + file)
+    src = cv.cvtColor(src, cv.COLOR_BGR2GRAY)
 
     base_black = histogram_Comparison(blackSrc[0], src, 0)
     base_black2 = histogram_Comparison(blackSrc[1], src, 0)
     base_black3 = histogram_Comparison(blackSrc[2], src, 0)
     base_black_logo = histogram_Comparison(blackSrc[3], src, 0)
 
-    # print(file + " is " + str(base_black4))
-
     comparisonResult = None
 
-    if(base_black > 0.55 or base_black2 > 0.55 or base_black3 > 0.7 or base_black_logo > 0.5 or base_black < -0.003):
+    if(base_black > 0.55 or base_black3 > 0.7 or base_black_logo > 0.5 or base_black < -0.003):
         comparisonResult = "black"
     else:
         comparisonResult = "white"
@@ -228,7 +197,9 @@ if __name__ == '__main__':
 
     photoList = fileSort()
     startTime = datetime.datetime.now()
-    for comparisonList in photoList:
+
+    for comparisonList in tqdm(photoList):
+
         firstTime = fileNameParse(comparisonList[0])
         finalTime = fileNameParse(comparisonList[len(comparisonList)-1])
         for photo in comparisonList:
@@ -242,18 +213,19 @@ if __name__ == '__main__':
             if(firstTime != None and timeStamp != None):
                 count = (timeStamp - firstTime).seconds
 
-                if(count > 60):
-                    # errorCount += 1
-                    print(colors.fg.lightgrey, str(firstTime) + " - " + str(finalTime), colors.fg.orange, " Accumulated time: " + str(count), colors.fg.lightred, "-----> Error happened")
+                if(count > 60 or count < 40):
+                    # print(colors.fg.lightgrey, str(firstTime) + " - " + str(finalTime), colors.fg.orange, " Accumulated time: " + str(count), colors.fg.lightred, "-----> Error happened")
                     loge(str(firstTime) + " - " + str(finalTime) + " Accumulated time: " + str(count) + " Error happened")
                     errorList.append(str(firstTime) + " - " + str(finalTime) + " Accumulated time: " + str(count))
                 else:
-                    if(args.debug):
-                        print(colors.fg.lightgrey, str(firstTime) + " - " + str(finalTime), colors.fg.orange, " Accumulated time: " + str(count) )
-                        logd(str(firstTime) + " - " + str(finalTime) + " Accumulated time: " + str(count))
+                    # if(args.debug):
+                    #     print(colors.fg.lightgrey, str(firstTime) + " - " + str(finalTime), colors.fg.orange, " Accumulated time: " + str(count) )
+                    logd(str(firstTime) + " - " + str(finalTime) + " Accumulated time: " + str(count))
                 
                 timeStamp = None
                 break;
+    for error in errorList:
+        print(error) 
 
     endTime = datetime.datetime.now()
     serviceTime = ((endTime - startTime).seconds)
@@ -262,6 +234,7 @@ if __name__ == '__main__':
     print(colors.fg.lightred, "Error happened " + str(len(errorList)) + " times")
     print(colors.fg.lightred, "Reboot " + str(len(photoList)) + " times.")
     print(colors.reset)
+    logd("Error happened " + str(len(errorList)) + " times.\n" + "Total reboot " + str(len(photoList)) + " times.")
     # createMailText(errorList, str(len(photoList)), endTime)
 
                 

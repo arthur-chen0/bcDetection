@@ -30,3 +30,4 @@ out/
 result/
 log/
 __pycache__/
+test*
