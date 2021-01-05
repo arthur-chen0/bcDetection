@@ -7,10 +7,12 @@ from colors import colors
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.image import MIMEImage
+from rethinkdb import RethinkDB
 import smtplib
 import glob
 import os
 import cv2 as cv
+import socket
 import datetime
 import argparse
 import fnmatch
@@ -45,6 +47,13 @@ log_e = logging.getLogger('ErrorLogger')
 fileList = os.listdir(imagePath)
 fileList.sort()
 
+r = RethinkDB()
+
+conn = r.connect(host='localhost', port=28015, db='picamera')
+
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+s.connect(('google.com', 0))
+ipaddr = s.getsockname()[0]
 
 # ==============================================================================================
 
@@ -214,10 +223,21 @@ def fileSort():
                 tempList.append(file)
             else:
                 tempList.append(file)
-    if tempList is not 0:
-        photoList.append(tempList)
-        tempList = []
+    # if tempList is not 0:
+    #     photoList.append(tempList)
+    #     tempList = []
     return photoList
+
+# ==============================================================================================
+
+def deletePhoto(list):
+    if len(list) < 40:
+        return
+    for f in list:
+        os.remove(imagePath + "/" + f)
+        r.table("photo").filter((r.row['name'] == str(f).split('.')[0]) & (r.row['ip'] == str(ipaddr))).delete(conn)
+    # logd(rec)
+
 # ======================================= Main =================================================       
 preImage = 'a'
 currentImage = 'b'
@@ -260,6 +280,7 @@ if __name__ == '__main__':
             loge(str(firstTime) + " - " + str(finalTime) + " Black screen accumulated time: " + str(count) + " Error happened")
             errorList.append(str(firstTime) + " - " + str(finalTime) + " Black screen accumulated time: " + str(count) + "\n")
             copyErrorToPhoto(comparisonList)
+        deletePhoto(comparisonList)
 
     for error in errorList:
         print(error)

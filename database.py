@@ -109,9 +109,9 @@ class TableHelper(object):
         pkey = pkey or self.primary_key
         return TableHelper(db, reql, pkey)
 
-    # def filter(self, *args, **kwargs):
-    #     reql = self.__reql.filter(*args, **kwargs)
-    #     return self.clone(reql=reql)
+    def filter(self, *args, **kwargs):
+        reql = self.__reql.filter(*args, **kwargs)
+        return self.clone(reql=reql)
 
     def get(self, *args, **kwargs):
         reql = self.__reql.get(*args, **kwargs)
