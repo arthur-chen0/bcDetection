@@ -23,8 +23,8 @@ import matplotlib.pyplot as plt
 
 # ==============================================================================================
 parser = argparse.ArgumentParser(description='Code for black screen detection.')
-parser.add_argument('-d', '--debug', help='Debug message', action='store_true')
-parser.add_argument('-dl', '--debugLevel', help='Debug message level', type=int, default='1')
+parser.add_argument('-m', '--mail', help='if mail the result after image recognition', action='store_true')
+parser.add_argument('-r', help='delete the photo after image recognition', action='store_true')
 parser.add_argument('-p', '--path', help='Image path')
 args = parser.parse_args()
 
@@ -83,10 +83,12 @@ def getMailreceiver():
     for user in mailList:
         if "#" not in user:
             receiver.append(user.replace("\n", " "))
+    logd('Mail receiver: ' + str(receiver))
     return receiver
 # ==============================================================================================
 
 def mailResult(errorList, totalTimes, endTime):
+    logd('Mail the result')
     send_user = 'jhtrd01@gmail.com'
     password = 'jhtrd1234'
     receive_users = getMailreceiver()
@@ -231,7 +233,9 @@ def fileSort():
 # ==============================================================================================
 
 def deletePhoto(list):
+    logd('Delete Photo')
     if len(list) < 40:
+        loge('list size is less than 40, return')
         return
     for f in list:
         os.remove(imagePath + "/" + f)
@@ -256,6 +260,7 @@ if __name__ == '__main__':
 
         firstTime = fileNameParse(comparisonList[0])
         finalTime = fileNameParse(comparisonList[-1])
+        
         for photo in comparisonList:
             count = 0
             preImage = currentImage
@@ -280,7 +285,8 @@ if __name__ == '__main__':
             loge(str(firstTime) + " - " + str(finalTime) + " Black screen accumulated time: " + str(count) + " Error happened")
             errorList.append(str(firstTime) + " - " + str(finalTime) + " Black screen accumulated time: " + str(count) + "\n")
             copyErrorToPhoto(comparisonList)
-        deletePhoto(comparisonList)
+        if args.r:
+            deletePhoto(comparisonList)
 
     for error in errorList:
         print(error)
@@ -293,4 +299,5 @@ if __name__ == '__main__':
     print(colors.fg.lightred, "Reboot " + str(len(photoList)) + " times.")
     print(colors.reset)
     logd("Error happened " + str(len(errorList)) + " times.  " + "Total reboot " + str(len(photoList)) + " times.")
-    mailResult(errorList, str(len(photoList)), endTime)
+    if args.mail:
+        mailResult(errorList, str(len(photoList)), endTime)
