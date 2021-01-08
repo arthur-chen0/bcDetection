@@ -4,6 +4,7 @@ from tqdm import tqdm
 from skimage.metrics import structural_similarity
 from loggingConfig import LOGGING
 from colors import colors
+from cameraConfig import config
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.image import MIMEImage
@@ -25,11 +26,12 @@ import matplotlib.pyplot as plt
 parser = argparse.ArgumentParser(description='Code for black screen detection.')
 parser.add_argument('-m', '--mail', help='if mail the result after image recognition', action='store_true')
 parser.add_argument('-r', help='delete the photo after image recognition', action='store_true')
-parser.add_argument('-p', '--path', help='Image path')
+parser.add_argument('-d', '--device', help='use which camera')
 args = parser.parse_args()
 
+
 filePath = os.path.abspath('/home/jhtrd/auto_test/blackScreen/chimera/')
-imagePath = os.path.abspath("/home/jhtrd/auto_test/photo_web/" + args.path)
+imagePath = os.path.abspath("/home/jhtrd/auto_test/photo_web/" + config[args.device]['folder'])
 
 currentFile = __file__.split('/')[-1].split('.')[0]
 
@@ -239,8 +241,8 @@ def deletePhoto(list):
         return
     for f in list:
         os.remove(imagePath + "/" + f)
-        r.table("photo").filter((r.row['name'] == str(f).split('.')[0]) & (r.row['ip'] == str(ipaddr))).delete(conn)
-    # logd(rec)
+        rec = r.table("photo").filter((r.row['name'] == str(f).split('.')[0]) & (r.row['ip'] == config[args.device]['ip'])).delete(conn)
+        # logd(rec)
 
 # ======================================= Main =================================================       
 preImage = 'a'
@@ -252,6 +254,8 @@ errorList = []
 count = None
 
 if __name__ == '__main__':
+
+    logd(args.device + '  ip: ' + config[args.device] + '  Folder: ' + str(imagePath))
 
     photoList = fileSort()
     startTime = datetime.datetime.now()
