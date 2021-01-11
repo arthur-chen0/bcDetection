@@ -241,7 +241,7 @@ def deletePhoto(list):
         return
     for f in list:
         os.remove(imagePath + "/" + f)
-        rec = r.table("photo").filter((r.row['name'] == str(f).split('.')[0]) & (r.row['ip'] == config[args.device]['ip'])).delete(conn)
+        rec = r.table("photo").filter((r.row['name'] == str(f).split('.')[0]) & (r.row['ip'] == config[args.device]['ip'])).delete().run(conn)
         # logd(rec)
 
 # ======================================= Main =================================================       
@@ -255,7 +255,7 @@ count = None
 
 if __name__ == '__main__':
 
-    logd(args.device + '  ip: ' + config[args.device] + '  Folder: ' + str(imagePath))
+    logd(args.device + '  ip: ' + config[args.device]['ip'] + '  Folder: ' + str(imagePath))
 
     photoList = fileSort()
     startTime = datetime.datetime.now()
