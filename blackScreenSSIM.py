@@ -278,14 +278,15 @@ def deletePhoto(list):
     if len(list) < 36:
         loge('list size is less than 40, return')
         return
+    print('\n')
     for f in tqdm(list, desc='delete photo'):
         os.remove(imagePath + "/" + f)
         rec = r.table("photo").filter((r.row['name'] == str(f).split('.')[0]) & (r.row['ip'] == config[args.device]['ip'])).delete().run(conn)
         # logd(rec)
 
 # ======================================= Main =================================================       
-preImage = 'a'
-currentImage = 'b'
+preImage = 'white'
+currentImage = 'white'
 firstTime = None
 timeStamp = None
 finalTime = None
@@ -327,6 +328,13 @@ if __name__ == '__main__':
         print(colors.fg.lightred, "Reboot " + str(len(photoList)) + " times.")
         print(colors.reset)
         logd("Error happened " + str(len(errorList)) + " times.  " + "Total reboot " + str(len(photoList)) + " times.")
+        
+        for log in os.listdir(logfilePath):
+            fileSize = os.stat(logfilePath + "/" + log).st_size
+            if fileSize is 0:
+                os.remove(logfilePath + "/" + log)
+                logd(str(log) + " size is 0, delete it")
+
         if args.mail:
             mailResult(errorList, str(len(photoList)), endTime)
 
