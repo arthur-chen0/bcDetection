@@ -10,6 +10,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.image import MIMEImage
 from email.mime.application import MIMEApplication
 from rethinkdb import RethinkDB
+from multiprocessing import Process
 import sys
 import smtplib
 import glob
@@ -55,7 +56,7 @@ fileList.sort()
 
 r = RethinkDB()
 
-conn = r.connect(host='localhost', port=28015, db='picamera')
+# conn = r.connect(host='localhost', port=28015, db='picamera')
 
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s.connect(('google.com', 0))
@@ -272,11 +273,17 @@ def deletePhoto(list):
     if len(list) < 36:
         loge('list size is less than 40, return')
         return
+    logd('start delete  ' + list[0])
+    first = fileNameParse(list[0])
+    last = fileNameParse(list[-1])
+    conn = r.connect(host='localhost', port=28015, db='picamera')
     for f in list:
         os.remove(imagePath + "/" + f)
-        rec = r.table("photo").filter((r.row['name'] == str(f).split('.')[0]) & (r.row['ip'] == config[args.device]['ip'])).delete().run(conn)
-        # logd(rec)
+    
+    rec = r.table("photo").filter(r.row['date'].during(r.time(first.year, first.month, first.day, first.hour, first.minute, first.second-1, "+08:00"), r.time(last.year, last.month, last.day, last.hour, last.minute, last.second+1, "+08:00"))).delete().run(conn)
+    logd('Done  ' + list[0])
 
+    conn.close()
 # ======================================= Main =================================================       
 preImage = 'a'
 currentImage = 'b'
@@ -324,7 +331,9 @@ if __name__ == '__main__':
                 errorList.append(str(firstTime) + " - " + str(finalTime) + " Black screen accumulated time: " + str(count) + "\n")
                 copyErrorToPhoto(comparisonList)
             if args.r:
-                deletePhoto(comparisonList)
+                p1 = Process(target = deletePhoto,args=(comparisonList,))
+                p1.start()
+                # deletePhoto(comparisonList)
 
         for error in errorList:
             print(error)

@@ -9,6 +9,6 @@ config = {
     },
     'camera3':{
         'folder' : 'photo3',
-        'ip' : ''
+        'ip' : '192.168.70.1'
     }
 }
