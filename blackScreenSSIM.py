@@ -30,7 +30,7 @@ parser.add_argument('-d', '--device', help='use which camera')
 args = parser.parse_args()
 
 
-filePath = os.path.abspath('/home/jhtrd/auto_test/blackScreen/chimera/')
+filePath = os.path.abspath('/home/jhtrd/auto_test/blackScreen/athena/')
 imagePath = os.path.abspath("/home/jhtrd/auto_test/photo_web/" + config[args.device]['folder'])
 
 currentFile = __file__.split('/')[-1].split('.')[0]
@@ -144,7 +144,7 @@ def mailResult(errorList, totalTimes, endTime):
     smtp.quit()
 # ==============================================================================================
 def imageRead():
-    imageBase = ['black.jpg', 'black2.jpg', 'black3.jpg', 'black_logo.jpg']
+    imageBase = ['black.jpg', 'black2.jpg', 'black3.jpg', 'black_logo.jpg', 'matrix_logo.jpg']
     blackSrc = []
     for image in imageBase:
         blacksrc = cv.imread(filePath + '/' + image)
@@ -160,19 +160,21 @@ def comparison(file):
 
     black = cv.cvtColor(blackSrc[0], cv.COLOR_BGR2GRAY)
     black2 = cv.cvtColor(blackSrc[1], cv.COLOR_BGR2GRAY)
+    mLogo = cv.cvtColor(blackSrc[4],cv.COLOR_BGR2GRAY)
     photoSrc = cv.cvtColor(src, cv.COLOR_BGR2GRAY)
 
     comparisonResult = None
 
     (score, diff) = structural_similarity(black, photoSrc, full=True)
     (score2, diff) = structural_similarity(black2, photoSrc, full=True)
+    (score3, diff) = structural_similarity(mLogo, photoSrc, full=True)
 
-    if score > 0.7 or score2 > 0.7:
+    if score > 0.7 or score2 > 0.7 or score3 > 0.7:
         comparisonResult = "black"
     else:
         comparisonResult = "white"
 
-    logd(str(file).split('.')[0] + " " + comparisonResult + " SSIM: " + format(score) + " / " + format(score2))
+    logd(str(file).split('.')[0] + " " + comparisonResult + " SSIM: " + format(score) + " / " + format(score2) + ' / ' + format(score3))
 
     return comparisonResult
 # ==============================================================================================
@@ -182,7 +184,11 @@ def fileNameParse(file):
     timeStamp = datetime.datetime(datetime.datetime.today().year, int(timeStamp[0]), int(timeStamp[1]), int(timeStamp[2]), int(timeStamp[3]), int(timeStamp[4]))
     return timeStamp
 # ==============================================================================================
-def copyErrorToPhoto(errorPhotoList):
+def copyErrorToPhoto(index):
+    errorPhotoList = []
+    for error in fileList[(index - 20):(index + 20)]:
+        errorPhotoList.append(error)
+
     errorFilePath = filePath + "/error/" + logFileDate.strftime('%Y_%m_%d_%H_%M_%S')
     col = 10
     row = math.ceil(len(errorPhotoList) / col)
@@ -207,11 +213,11 @@ def copyErrorToPhoto(errorPhotoList):
         i += 1
 
     fig.tight_layout()
-    fig.set_size_inches(imageWidth * col / 500 + 10.5, imageHeight * row / 500 + row * 0.8)  # 10.5 and row * 0.8 is for filname displaying
+    fig.set_size_inches(imageWidth * col / 500 + 10.5, imageHeight * row / 500 + row * 0.85)  # 10.5 and row * 0.8 is for filname displaying
     if not os.path.exists(errorFilePath):
         os.makedirs(errorFilePath)
 
-    plt.savefig(errorFilePath + "/" + str(errorPhotoList[0]), bbox_inches='tight', dpi=40)
+    plt.savefig(errorFilePath + "/" + str(fileList[index]), bbox_inches='tight', dpi=40)
 
 
 # ==============================================================================================
@@ -241,7 +247,7 @@ def deletePhoto(list):
         return
     for f in list:
         os.remove(imagePath + "/" + f)
-        rec = r.table("photo").filter((r.row['name'] == str(f).split('.')[0]) & (r.row['ip'] == config[args.device]['ip'])).delete(conn)
+        rec = r.table("photo").filter((r.row['name'] == str(f).split('.')[0]) & (r.row['ip'] == config[args.device]['ip'])).delete().run(conn)
         # logd(rec)
 
 # ======================================= Main =================================================       
@@ -255,45 +261,65 @@ count = None
 
 if __name__ == '__main__':
 
-    logd(args.device + '  ip: ' + config[args.device] + '  Folder: ' + str(imagePath))
+    logd(args.device + '  ip: ' + config[args.device]['ip'] + '  Photh folder: ' + str(imagePath))
 
-    photoList = fileSort()
+    photoList = []
     startTime = datetime.datetime.now()
 
-    for comparisonList in tqdm(photoList):
+    # for comparisonList in tqdm(photoList):
 
-        firstTime = fileNameParse(comparisonList[0])
-        finalTime = fileNameParse(comparisonList[-1])
+    #     firstTime = fileNameParse(comparisonList[0])
+    #     finalTime = fileNameParse(comparisonList[-1])
         
-        for photo in comparisonList:
-            count = 0
-            preImage = currentImage
-            currentImage = comparison(photo)
+    #     for photo in comparisonList:
+    #         count = 0
+    #         preImage = currentImage
+    #         currentImage = comparison(photo)
 
-            if preImage is "black" and currentImage is 'white':
-                timeStamp = fileNameParse(photo)
+    #         if preImage is "black" and currentImage is 'white':
+    #             timeStamp = fileNameParse(photo)
 
-            if firstTime is not None and timeStamp is not None:
-                count = (timeStamp - firstTime).seconds
+    #         if firstTime is not None and timeStamp is not None:
+    #             count = (timeStamp - firstTime).seconds
 
-                if count > 60 or count < 40:
-                    loge(str(firstTime) + " - " + str(finalTime) + " Black screen accumulated time: " + str(count) + " Error happened")
-                    errorList.append(str(firstTime) + " - " + str(finalTime) + " Black screen accumulated time: " + str(count) + "\n")
-                    copyErrorToPhoto(comparisonList)
-                else:
-                    logd(str(firstTime) + " - " + str(finalTime) + " Black screen accumulated time: " + str(count))
+    #             if count > 60 or count < 40:
+    #                 loge(str(firstTime) + " - " + str(finalTime) + " Black screen accumulated time: " + str(count) + " Error happened")
+    #                 errorList.append(str(firstTime) + " - " + str(finalTime) + " Black screen accumulated time: " + str(count) + "\n")
+    #                 copyErrorToPhoto(comparisonList)
+    #             else:
+    #                 logd(str(firstTime) + " - " + str(finalTime) + " Black screen accumulated time: " + str(count))
 
-                timeStamp = None
-                break;
-        if count is 0:
-            loge(str(firstTime) + " - " + str(finalTime) + " Black screen accumulated time: " + str(count) + " Error happened")
-            errorList.append(str(firstTime) + " - " + str(finalTime) + " Black screen accumulated time: " + str(count) + "\n")
-            copyErrorToPhoto(comparisonList)
-        if args.r:
-            deletePhoto(comparisonList)
+    #             timeStamp = None
+    #             break;
+    #     if count is 0:
+    #         loge(str(firstTime) + " - " + str(finalTime) + " Black screen accumulated time: " + str(count) + " Error happened")
+    #         errorList.append(str(firstTime) + " - " + str(finalTime) + " Black screen accumulated time: " + str(count) + "\n")
+    #         copyErrorToPhoto(comparisonList)
+    #     if args.r:
+    #         deletePhoto(comparisonList)
+
+    # for error in errorList:
+    #     print(error)
+
+    i = 0
+    for photo in tqdm(fileList):
+        preImage = currentImage
+        currentImage = comparison(photo)
+
+        if preImage is "white" and currentImage is 'black':
+            # print('error happened')
+            errorList.append(photo)
+            logd('error happened: ' + str(photo))
+            copyErrorToPhoto(i)
+        if i < (len(fileList)-1):
+            i += 1
+    if args.r:
+        deletePhoto(fileList)
 
     for error in errorList:
         print(error)
+
+
 
     endTime = datetime.datetime.now()
     serviceTime = (endTime - startTime).seconds
