@@ -8,7 +8,9 @@ from cameraConfig import config
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.image import MIMEImage
+from email.mime.application import MIMEApplication
 from rethinkdb import RethinkDB
+import sys
 import smtplib
 import glob
 import os
@@ -20,6 +22,7 @@ import fnmatch
 import logging
 import inspect
 import math
+import traceback
 import matplotlib.pyplot as plt
 
 # ==============================================================================================
@@ -32,14 +35,15 @@ args = parser.parse_args()
 
 filePath = os.path.abspath('/home/jhtrd/auto_test/blackScreen/athena/')
 imagePath = os.path.abspath("/home/jhtrd/auto_test/photo_web/" + config[args.device]['folder'])
+logfilePath = os.path.abspath(filePath + "/log/")
 
 currentFile = __file__.split('/')[-1].split('.')[0]
 
-if not os.path.exists(filePath + "/log/"):
-    os.makedirs(filePath + "/log/")
+if not os.path.exists(logfilePath):
+    os.makedirs(logfilePath)
 logFileDate = datetime.datetime.now()
-LOGGING['handlers']['debug']['filename'] = logFileDate.strftime(filePath + '/log/' + currentFile + '_%m_%d_%H_%M_%S.log')
-LOGGING['handlers']['error']['filename'] = logFileDate.strftime(filePath + '/log/' + currentFile + '_error_%m_%d_%H_%M_%S.log')
+LOGGING['handlers']['debug']['filename'] = logFileDate.strftime(logfilePath + '/' + currentFile + '_%m_%d_%H_%M_%S.log')
+LOGGING['handlers']['error']['filename'] = logFileDate.strftime(logfilePath + '/' + currentFile + '_error_%m_%d_%H_%M_%S.log')
 
 logging.config.dictConfig(config=LOGGING)
 log_c = logging.getLogger('console')
@@ -58,6 +62,17 @@ s.connect(('google.com', 0))
 ipaddr = s.getsockname()[0]
 
 # ==============================================================================================
+
+def exceptionHandler(e):
+    error_class = e.__class__.__name__ #取得錯誤類型
+    detail = e.args[0] #取得詳細內容
+    cl, exc, tb = sys.exc_info() #取得Call Stack
+    lastCallStack = traceback.extract_tb(tb)[-1] #取得Call Stack的最後一筆資料
+    fileName = lastCallStack[0] #取得發生的檔案名稱
+    lineNum = lastCallStack[1] #取得發生的行號
+    funcName = lastCallStack[2] #取得發生的函數名稱
+    errMsg = "File \"{}\", line {}, in {}(): [{}] {}".format(fileName, lineNum, funcName, error_class, detail)
+    loge(errMsg)
 
 def logi(message):
     log_c.info(str(message))
@@ -132,6 +147,20 @@ def mailResult(errorList, totalTimes, endTime):
     mailMsg += ("This is daily mail for Athena test.\n" + str(endTime.strftime("%Y-%m-%d %H:%M:%S")) + "\n")
     msg.attach(MIMEText(mailMsg))
 
+    # f = logFileDate.strftime(filePath + '/log/' + currentFile + '_%m_%d_%H_%M_%S.log')
+    
+    for log in os.listdir(logfilePath):
+        if logFileDate.strftime('_%m_%d_%H_%M_%S.log') in str(log):
+            # logd(str(log) + " size: " + str(os.stat(filePath + "/log/" + log).st_size))
+            # if os.stat(filePath + "/log/" + log).st_size is not 0:
+            with open(logfilePath + "/" + log, "rb") as fil:
+                attchment = MIMEApplication(
+                    fil.read(),
+                    Name = os.path.basename(log)
+                )
+                attchment['Content-Disposition'] = 'attachment; filename="%s"' % os.path.basename(log)
+                msg.attach(attchment)
+
     smtp=smtplib.SMTP("smtp.gmail.com", 587)
     smtp.ehlo() 
     smtp.starttls()
@@ -157,6 +186,10 @@ def imageRead():
 def comparison(file):
     blackSrc = imageRead()
     src = cv.imread(imagePath + "/" + file)
+    # logd("read photo " + str(file))
+    if src is None:
+        loge(imagePath + '/' + file + " could not open or find the images!")
+        exit(0)
 
     black = cv.cvtColor(blackSrc[0], cv.COLOR_BGR2GRAY)
     black2 = cv.cvtColor(blackSrc[1], cv.COLOR_BGR2GRAY)
@@ -242,7 +275,7 @@ def fileSort():
 
 def deletePhoto(list):
     logd('Delete Photo')
-    if len(list) < 40:
+    if len(list) < 36:
         loge('list size is less than 40, return')
         return
     for f in tqdm(list, desc='delete photo'):
@@ -266,68 +299,37 @@ if __name__ == '__main__':
     photoList = []
     startTime = datetime.datetime.now()
 
-    # for comparisonList in tqdm(photoList):
+    try:
 
-    #     firstTime = fileNameParse(comparisonList[0])
-    #     finalTime = fileNameParse(comparisonList[-1])
-        
-    #     for photo in comparisonList:
-    #         count = 0
-    #         preImage = currentImage
-    #         currentImage = comparison(photo)
+        i = 0
+        for photo in tqdm(fileList, desc="comparison"):
+            preImage = currentImage
+            currentImage = comparison(photo)
 
-    #         if preImage is "black" and currentImage is 'white':
-    #             timeStamp = fileNameParse(photo)
+            if preImage is "white" and currentImage is 'black':
+                # print('error happened')
+                errorList.append(photo)
+                logd('error happened: ' + str(photo))
+                copyErrorToPhoto(i)
+            if i < (len(fileList)-1):
+                i += 1
+        if args.r:
+            deletePhoto(fileList)
 
-    #         if firstTime is not None and timeStamp is not None:
-    #             count = (timeStamp - firstTime).seconds
+        for error in errorList:
+            print(error)
 
-    #             if count > 60 or count < 40:
-    #                 loge(str(firstTime) + " - " + str(finalTime) + " Black screen accumulated time: " + str(count) + " Error happened")
-    #                 errorList.append(str(firstTime) + " - " + str(finalTime) + " Black screen accumulated time: " + str(count) + "\n")
-    #                 copyErrorToPhoto(comparisonList)
-    #             else:
-    #                 logd(str(firstTime) + " - " + str(finalTime) + " Black screen accumulated time: " + str(count))
+        endTime = datetime.datetime.now()
+        serviceTime = (endTime - startTime).seconds
+        print(colors.fg.lightblue, "Total File: " + str(len(fileList)))
+        print(colors.fg.lightblue, "Service Time: " + str(serviceTime) + " Sec")
+        print(colors.fg.lightred, "Error happened " + str(len(errorList)) + " times")
+        print(colors.fg.lightred, "Reboot " + str(len(photoList)) + " times.")
+        print(colors.reset)
+        logd("Error happened " + str(len(errorList)) + " times.  " + "Total reboot " + str(len(photoList)) + " times.")
+        if args.mail:
+            mailResult(errorList, str(len(photoList)), endTime)
 
-    #             timeStamp = None
-    #             break;
-    #     if count is 0:
-    #         loge(str(firstTime) + " - " + str(finalTime) + " Black screen accumulated time: " + str(count) + " Error happened")
-    #         errorList.append(str(firstTime) + " - " + str(finalTime) + " Black screen accumulated time: " + str(count) + "\n")
-    #         copyErrorToPhoto(comparisonList)
-    #     if args.r:
-    #         deletePhoto(comparisonList)
+    except Exception as exc:
+        exceptionHandler(exc)
 
-    # for error in errorList:
-    #     print(error)
-
-    i = 0
-    for photo in tqdm(fileList, desc="comparison"):
-        preImage = currentImage
-        currentImage = comparison(photo)
-
-        if preImage is "white" and currentImage is 'black':
-            # print('error happened')
-            errorList.append(photo)
-            logd('error happened: ' + str(photo))
-            copyErrorToPhoto(i)
-        if i < (len(fileList)-1):
-            i += 1
-    if args.r:
-        deletePhoto(fileList)
-
-    for error in errorList:
-        print(error)
-
-
-
-    endTime = datetime.datetime.now()
-    serviceTime = (endTime - startTime).seconds
-    print(colors.fg.lightblue, "Total File: " + str(len(fileList)))
-    print(colors.fg.lightblue, "Service Time: " + str(serviceTime) + " Sec")
-    print(colors.fg.lightred, "Error happened " + str(len(errorList)) + " times")
-    print(colors.fg.lightred, "Reboot " + str(len(photoList)) + " times.")
-    print(colors.reset)
-    logd("Error happened " + str(len(errorList)) + " times.  " + "Total reboot " + str(len(photoList)) + " times.")
-    if args.mail:
-        mailResult(errorList, str(len(photoList)), endTime)
