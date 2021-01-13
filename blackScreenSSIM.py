@@ -93,8 +93,8 @@ def mailResult(errorList, totalTimes, endTime):
     logd('Mail the result')
     send_user = 'jhtrd01@gmail.com'
     password = 'jhtrd1234'
-    receive_users = getMailreceiver()
-    subject = 'Chimera Black Screen Test Result'
+    receive_users = ['arthurchen@johnsonfitness.com','FrankHung@johnsonfitness.com']
+    subject = 'Athena 0400 error code Test Result'
 
     msg = MIMEMultipart()
     msg['Subject']=subject
@@ -117,7 +117,7 @@ def mailResult(errorList, totalTimes, endTime):
     i = 0
     for error in errorList:
         with open(errorPhotoList[i], 'rb') as f:
-            msg.attach(MIMEText('\n' + error))
+            msg.attach(MIMEText('\n' + error + '\n'))
             img_data = f.read()
             img = MIMEImage(img_data)
             img.add_header('Content-ID', 'dns_config') 
@@ -129,7 +129,7 @@ def mailResult(errorList, totalTimes, endTime):
     mailMsg = ""
     mailMsg += ("\n\n" + str(fileNameParse(fileList[0])) + " ~ " + str(fileNameParse(fileList[-1])) + "   " + str(fileNameParse(fileList[-1]) - fileNameParse(fileList[0])) + "\n")
     mailMsg += ("Error happened " + str(len(errorList)) + " times.\n" + "Total reboot " + totalTimes + " times.\n\n")
-    mailMsg += ("This is daily mail for chimera black screen test.\n" + str(endTime.strftime("%Y-%m-%d %H:%M:%S")) + "\n")
+    mailMsg += ("This is daily mail for Athena test.\n" + str(endTime.strftime("%Y-%m-%d %H:%M:%S")) + "\n")
     msg.attach(MIMEText(mailMsg))
 
     smtp=smtplib.SMTP("smtp.gmail.com", 587)
@@ -245,7 +245,7 @@ def deletePhoto(list):
     if len(list) < 40:
         loge('list size is less than 40, return')
         return
-    for f in list:
+    for f in tqdm(list, desc='delete photo'):
         os.remove(imagePath + "/" + f)
         rec = r.table("photo").filter((r.row['name'] == str(f).split('.')[0]) & (r.row['ip'] == config[args.device]['ip'])).delete().run(conn)
         # logd(rec)
@@ -302,7 +302,7 @@ if __name__ == '__main__':
     #     print(error)
 
     i = 0
-    for photo in tqdm(fileList):
+    for photo in tqdm(fileList, desc="comparison"):
         preImage = currentImage
         currentImage = comparison(photo)
 
