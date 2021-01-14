@@ -280,7 +280,8 @@ def deletePhoto(list):
     for f in list:
         os.remove(imagePath + "/" + f)
     
-    rec = r.table("photo").filter(r.row['date'].during(r.time(first.year, first.month, first.day, first.hour, first.minute, first.second-1, "+08:00"), r.time(last.year, last.month, last.day, last.hour, last.minute, last.second+1, "+08:00"))).delete().run(conn)
+    rec = r.table("photo").filter((r.row['ip'] == config[args.device]['ip']) & r.row['date'].during(r.time(first.year, first.month, first.day, first.hour, first.minute, first.second-1, "+08:00"), r.time(last.year, last.month, last.day, last.hour, last.minute, last.second+5, "+08:00"))).delete().run(conn)
+    logd(rec)
     logd('Done  ' + list[0])
 
     conn.close()
