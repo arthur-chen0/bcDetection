@@ -10,6 +10,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.image import MIMEImage
 from email.mime.application import MIMEApplication
 from rethinkdb import RethinkDB
+from multiprocessing import Process
 import sys
 import smtplib
 import glob
@@ -55,7 +56,7 @@ fileList.sort()
 
 r = RethinkDB()
 
-conn = r.connect(host='localhost', port=28015, db='picamera')
+# conn = r.connect(host='localhost', port=28015, db='picamera')
 
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s.connect(('google.com', 0))
@@ -278,12 +279,20 @@ def deletePhoto(list):
     if len(list) < 36:
         loge('list size is less than 40, return')
         return
+
+    logd('start delete  ' + list[0])
+    first = fileNameParse(list[0])
+    last = fileNameParse(list[-1])
+    conn = r.connect(host='localhost', port=28015, db='picamera')
     print('\n')
     for f in tqdm(list, desc='delete photo'):
         os.remove(imagePath + "/" + f)
-        rec = r.table("photo").filter((r.row['name'] == str(f).split('.')[0]) & (r.row['ip'] == config[args.device]['ip'])).delete().run(conn)
-        # logd(rec)
+    
+    rec = r.table("photo").filter((r.row['ip'] == config[args.device]['ip']) & r.row['date'].during(r.time(first.year, first.month, first.day, first.hour, first.minute, first.second-1, "+08:00"), r.time(last.year, last.month, last.day, last.hour, last.minute, last.second+5, "+08:00"))).delete().run(conn)
+    logd(rec)
+    logd('Done  ' + list[0])
 
+    conn.close()
 # ======================================= Main =================================================       
 preImage = 'white'
 currentImage = 'white'
@@ -301,7 +310,7 @@ if __name__ == '__main__':
     startTime = datetime.datetime.now()
 
     try:
-
+        
         i = 0
         for photo in tqdm(fileList, desc="comparison"):
             preImage = currentImage
@@ -316,6 +325,7 @@ if __name__ == '__main__':
                 i += 1
         if args.r:
             deletePhoto(fileList)
+
 
         for error in errorList:
             print(error)
